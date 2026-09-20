@@ -1,0 +1,641 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+
+// Environment variables provided by the platform
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'anna-paolino-nails-demo';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const SERVICES = [
+  { id: 'pedicure', name: 'Pedicure', duration: 30, price: '€25', icon: '🦶' },
+  { id: 'smontaggio', name: 'Smontaggio Gel', duration: 30, price: '€15', icon: '💅' },
+  { id: 'manicure', name: 'Manicure', duration: 60, price: '€35', icon: '✨' },
+  { id: 'refill', name: 'Refill', duration: 60, price: '€45', icon: '🔄' },
+  { id: 'ricostruzione', name: 'Ricostruzione Unghie', duration: 90, price: '€60', icon: '⭐' }
+];
+
+const WEEKDAYS = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+
+// Helper to convert HH:MM to minutes
+const timeToMins = (timeStr) => {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+};
+
+// Helper to convert minutes to HH:MM
+const minsToTime = (mins) => {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
+// Generate valid slot start times (in minutes) for a given day index (0=Sun, 1=Mon...6=Sat)
+const generateDaySlots = (dayIndex) => {
+  if (dayIndex === 0) return []; // Domenica chiuso
+  const slots = [];
+  
+  if (dayIndex >= 1 && dayIndex <= 5) {
+    // Lun-Ven: 09:00 - 13:00 e 14:00 - 19:00
+    // Mattina: 09:00(540) to 12:30(750) -> last slot ends at 13:00(780)
+    for (let m = 540; m <= 750; m += 30) slots.push(m);
+    // Pomeriggio: 14:00(840) to 18:30(1110) -> last slot ends at 19:00(1140)
+    for (let m = 840; m <= 1110; m += 30) slots.push(m);
+  } else if (dayIndex === 6) {
+    // Sabato: 09:00 - 12:00
+    // 09:00(540) to 11:30(690) -> last slot ends at 12:00(720)
+    for (let m = 540; m <= 690; m += 30) slots.push(m);
+  }
+  return slots;
+};
+
+const getLocalDateString = (date) => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getNextValidDate = (date) => {
+  const d = new Date(date);
+  // Se è domenica (0), sposta a lunedì
+  if (d.getDay() === 0) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
+};
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [loadingDate, setLoadingDate] = useState(true);
+  
+  // UI State
+  const initialDate = getNextValidDate(new Date());
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString(initialDate));
+  const [selectedServiceId, setSelectedServiceId] = useState(SERVICES[0].id);
+  const [bookingModal, setBookingModal] = useState({ isOpen: false, timeSlot: null });
+  const [bookingSuccess, setBookingSuccess] = useState({ isOpen: false, details: null });
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [toast, setToast] = useState(null);
+
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
+    if (adminUsername === 'annanails' && adminPassword === 'peppenails') {
+      setIsAdminLoggedIn(true);
+      setShowAdminLogin(false);
+      setAdminUsername('');
+      setAdminPassword('');
+      showToast("Accesso amministratore effettuato");
+    } else {
+      showToast("Credenziali non valide", "error");
+    }
+  };
+
+  const handleDeleteAppointment = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+      showToast("Prenotazione eliminata con successo.");
+    } catch (error) {
+      console.error("Errore durante l'eliminazione:", error);
+      showToast("Errore durante l'eliminazione.", "error");
+    }
+  };
+
+  const sortedAppointments = useMemo(() => {
+    return [...appointments].sort((a, b) => {
+        const dateA = new Date(`${a.date}T00:00:00`);
+        const dateB = new Date(`${b.date}T00:00:00`);
+        if (dateA > dateB) return 1;
+        if (dateA < dateB) return -1;
+        return a.timeMins - b.timeMins;
+    });
+  }, [appointments]);
+
+  const selectedService = SERVICES.find(s => s.id === selectedServiceId);
+
+  // Auth Effect
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+        setUser(auth.currentUser);
+      } catch (error) {
+        console.error("Authentication failed:", error);
+        showToast("Errore di autenticazione.", "error");
+      }
+    };
+    initAuth();
+  }, []);
+
+  // Data Fetching Effect
+  useEffect(() => {
+    if (!user) return;
+    
+    setLoadingDate(true);
+    // Rule 1 & 2: Use exact path, simple collection query
+    const appointmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
+    
+    const unsubscribe = onSnapshot(appointmentsRef, (snapshot) => {
+      const allAppointments = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setAppointments(allAppointments);
+      setLoadingDate(false);
+    }, (error) => {
+      console.error("Firestore error:", error);
+      showToast("Errore di connessione.", "error");
+      setLoadingDate(false);
+    });
+
+    return () => unsubscribe();
+  }, [user, appId]);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const availableSlots = useMemo(() => {
+    if (!selectedDate || !selectedService) return [];
+    
+    const dateObj = new Date(selectedDate);
+    const dayIndex = dateObj.getDay();
+    const daySlots = generateDaySlots(dayIndex);
+    
+    // Filter appointments for the selected date in memory (Rule 2)
+    const daysAppointments = appointments.filter(app => app.date === selectedDate);
+    
+    const duration = selectedService.duration;
+    const slotsNeeded = duration / 30;
+    
+    const now = new Date();
+    const isToday = selectedDate === getLocalDateString(now);
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    return daySlots.map(slotStart => {
+      // 1. Is it in the past today?
+      if (isToday && slotStart <= currentMins) {
+        return { time: slotStart, available: false, reason: 'past' };
+      }
+
+      // 2. Do we have enough consecutive slots before closing/break?
+      let hasEnoughTime = true;
+      for (let i = 0; i < slotsNeeded; i++) {
+        if (!daySlots.includes(slotStart + (i * 30))) {
+          hasEnoughTime = false;
+          break;
+        }
+      }
+      if (!hasEnoughTime) {
+        return { time: slotStart, available: false, reason: 'duration' };
+      }
+
+      // 3. Does it overlap with existing appointments?
+      const requestedStart = slotStart;
+      const requestedEnd = slotStart + duration;
+      
+      const isOverlapping = daysAppointments.some(app => {
+        const appStart = app.timeMins;
+        const appEnd = app.timeMins + app.duration;
+        // Overlap condition: Request starts before App ends AND Request ends after App starts
+        return requestedStart < appEnd && requestedEnd > appStart;
+      });
+
+      if (isOverlapping) {
+        return { time: slotStart, available: false, reason: 'booked' };
+      }
+
+      return { time: slotStart, available: true };
+    });
+  }, [selectedDate, selectedService, appointments]);
+
+  const handleBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (!customerName || !customerPhone || !bookingModal.timeSlot || !user) return;
+
+    try {
+      const appointmentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
+      await addDoc(appointmentsRef, {
+        date: selectedDate,
+        timeMins: bookingModal.timeSlot,
+        timeStr: minsToTime(bookingModal.timeSlot),
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        duration: selectedService.duration,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        createdAt: new Date().toISOString(),
+        userId: user.uid
+      });
+      
+      setBookingSuccess({
+        isOpen: true,
+        details: {
+          serviceName: selectedService.name,
+          date: selectedDate,
+          timeStr: minsToTime(bookingModal.timeSlot)
+        }
+      });
+      
+      setBookingModal({ isOpen: false, timeSlot: null });
+      setCustomerName('');
+      setCustomerPhone('');
+    } catch (error) {
+      console.error("Booking error:", error);
+      showToast("Errore durante la prenotazione.", "error");
+    }
+  };
+
+  const getFormattedDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-50 text-stone-800 font-sans selection:bg-pink-200">
+      {/* Header */}
+      <header className="bg-black shadow-md border-b border-yellow-600/30 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <img src="image_8b54aa.jpg" alt="Anna Paolino Nails Logo" className="w-20 h-20 rounded-full border-2 border-pink-300 object-cover shadow-sm shadow-pink-500/50" style={{ width: '80px', height: '80px' }} />
+            <h1 className="text-2xl font-semibold text-pink-200 tracking-wider font-serif hidden sm:block">
+              Anna Paolino <span className="font-light text-yellow-500">Nails</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="hidden md:block text-pink-100 text-right text-xs opacity-80 mr-4">
+              <p>Lun - Ven: 09:00 - 13:00 / 14:00 - 19:00</p>
+              <p>Sab: 09:00 - 12:00 | Dom: Chiuso</p>
+            </div>
+            {isAdminLoggedIn ? (
+              <button onClick={() => setIsAdminLoggedIn(false)} className="text-xs bg-stone-800 text-pink-200 px-3 py-1.5 rounded-lg border border-pink-500/30 hover:bg-stone-700 transition">Esci</button>
+            ) : (
+              <button onClick={() => setShowAdminLogin(true)} className="text-xs text-stone-400 hover:text-pink-300 transition">Area Admin</button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        {isAdminLoggedIn ? (
+          /* Admin Dashboard */
+          <div className="animate-in fade-in duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-serif text-stone-900">Gestione Prenotazioni</h2>
+              <span className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm font-medium border border-pink-200">
+                {appointments.length} appuntamenti totali
+              </span>
+            </div>
+            
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+              {sortedAppointments.length === 0 ? (
+                <div className="p-8 text-center text-stone-500">Nessuna prenotazione presente.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-stone-50 text-stone-500 text-sm border-b border-stone-200">
+                        <th className="p-4 font-medium">Data</th>
+                        <th className="p-4 font-medium">Orario</th>
+                        <th className="p-4 font-medium">Cliente</th>
+                        <th className="p-4 font-medium">Telefono</th>
+                        <th className="p-4 font-medium">Servizio</th>
+                        <th className="p-4 font-medium text-right">Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedAppointments.map((app) => (
+                        <tr key={app.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors">
+                          <td className="p-4 whitespace-nowrap">{getFormattedDate(app.date)}</td>
+                          <td className="p-4 font-medium text-stone-700">{app.timeStr}</td>
+                          <td className="p-4 font-medium text-stone-900">{app.customerName}</td>
+                          <td className="p-4 text-stone-600">{app.customerPhone}</td>
+                          <td className="p-4 text-sm text-stone-600">
+                            <span className="bg-pink-50 text-pink-700 px-2 py-1 rounded-md border border-pink-100">{app.serviceName}</span>
+                          </td>
+                          <td className="p-4 text-right">
+                            <button 
+                              onClick={() => handleDeleteAppointment(app.id)}
+                              className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors text-sm font-medium"
+                            >
+                              Cancella
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Booking Flow */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column: Controls */}
+            <div className="lg:col-span-1 space-y-6">
+              
+              {/* Service Selection */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-200">
+                <h2 className="text-lg font-serif text-stone-900 mb-4 flex items-center gap-2">
+                  <span className="bg-pink-100 text-pink-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span> 
+                  Scegli il servizio
+                </h2>
+                <div className="space-y-3">
+                  {SERVICES.map(service => (
+                    <button
+                      key={service.id}
+                      onClick={() => setSelectedServiceId(service.id)}
+                      className={`w-full text-left p-4 rounded-xl border transition-all duration-200 flex items-center gap-3
+                        ${selectedServiceId === service.id 
+                          ? 'border-pink-400 bg-pink-50/50 ring-1 ring-pink-200' 
+                          : 'border-stone-200 hover:border-pink-300 hover:bg-pink-50/30'}`}
+                    >
+                      <span className="text-2xl drop-shadow-sm">{service.icon}</span>
+                      <div className="flex-1">
+                        <div className="font-medium text-stone-800">{service.name}</div>
+                        <div className="text-sm text-stone-500">{service.duration} min • {service.price}</div>
+                      </div>
+                      {selectedServiceId === service.id && (
+                        <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center shadow-sm">
+                           <svg className="w-3 h-3 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Selection */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-200">
+                <h2 className="text-lg font-serif text-stone-900 mb-4 flex items-center gap-2">
+                  <span className="bg-pink-100 text-pink-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span> 
+                  Scegli la data
+                </h2>
+                <input 
+                  type="date" 
+                  value={selectedDate}
+                  min={getLocalDateString(new Date())}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-stone-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all text-stone-700 bg-stone-50"
+                />
+                {new Date(selectedDate).getDay() === 0 && (
+                  <p className="mt-3 text-sm text-red-500 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Siamo chiusi la domenica. Seleziona un'altra data.
+                  </p>
+                )}
+              </div>
+              
+            </div>
+
+            {/* Right Column: Time Slots */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-200 min-h-full">
+                <div className="mb-6 pb-4 border-b border-stone-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-serif text-stone-900 flex items-center gap-2">
+                      <span className="bg-pink-100 text-pink-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span> 
+                      Orari disponibili
+                    </h2>
+                    <p className="text-stone-500 mt-1 capitalize ml-8">{getFormattedDate(selectedDate)}</p>
+                  </div>
+                </div>
+
+                {new Date(selectedDate).getDay() === 0 ? (
+                  <div className="text-center py-16 px-4">
+                    <span className="text-4xl mb-4 block opacity-50">😴</span>
+                    <h3 className="text-lg font-medium text-stone-700">Giorno di riposo</h3>
+                    <p className="text-stone-500 mt-2">La domenica il salone è chiuso.</p>
+                  </div>
+                ) : loadingDate ? (
+                  <div className="flex justify-center py-16">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-400"></div>
+                  </div>
+                ) : availableSlots.length === 0 ? (
+                  <div className="text-center py-16 px-4">
+                    <span className="text-4xl mb-4 block opacity-50">📅</span>
+                    <h3 className="text-lg font-medium text-stone-700">Nessun orario disponibile</h3>
+                    <p className="text-stone-500 mt-2">Prova a selezionare un'altra data o un servizio più breve.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {availableSlots.map((slot) => (
+                      <button
+                        key={slot.time}
+                        disabled={!slot.available}
+                        onClick={() => setBookingModal({ isOpen: true, timeSlot: slot.time })}
+                        className={`
+                          py-3 px-2 rounded-xl text-center font-medium transition-all duration-200 border
+                          ${slot.available 
+                            ? 'bg-white border-pink-200 text-stone-700 hover:bg-black hover:border-black hover:text-yellow-500 shadow-sm cursor-pointer' 
+                            : 'bg-stone-50 border-transparent text-stone-400 cursor-not-allowed opacity-50'
+                          }
+                        `}
+                      >
+                        {minsToTime(slot.time)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="mt-8 pt-6 border-t border-stone-100 flex gap-6 text-sm text-stone-500 justify-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full border border-pink-200 bg-white"></div> Libero
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-stone-100"></div> Occupato
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Admin Login Modal */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="bg-black p-6 border-b border-yellow-600/30 text-center">
+              <h3 className="text-xl font-serif text-pink-200">Area Riservata</h3>
+              <p className="text-stone-400 text-sm mt-1">Accesso amministratore</p>
+            </div>
+            <form onSubmit={handleAdminLogin} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Username</label>
+                <input 
+                  type="text" 
+                  required
+                  value={adminUsername}
+                  onChange={(e) => setAdminUsername(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-stone-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Password</label>
+                <input 
+                  type="password" 
+                  required
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-stone-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+                />
+              </div>
+              <div className="pt-2 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowAdminLogin(false)}
+                  className="flex-1 py-3 px-4 rounded-xl font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+                >
+                  Annulla
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-3 px-4 rounded-xl font-medium text-yellow-500 bg-black hover:bg-stone-900 transition-colors"
+                >
+                  Accedi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Modal */}
+      {bookingModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="bg-black p-6 border-b border-yellow-600/30">
+              <h3 className="text-xl font-serif text-pink-200">Conferma Prenotazione</h3>
+              <p className="text-stone-300 mt-1 text-sm">
+                {getFormattedDate(selectedDate)} alle {minsToTime(bookingModal.timeSlot)}
+              </p>
+            </div>
+            
+            <form onSubmit={handleBookingSubmit} className="p-6 space-y-4">
+              <div className="bg-pink-50/50 p-4 rounded-xl border border-pink-100 mb-6">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-stone-500 text-sm">Servizio</span>
+                  <span className="font-medium text-stone-800">{selectedService.name}</span>
+                </div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-stone-500 text-sm">Durata</span>
+                  <span className="font-medium text-stone-800">{selectedService.duration} min</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-500 text-sm">Prezzo base</span>
+                  <span className="font-medium text-black">{selectedService.price}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Nome e Cognome</label>
+                <input 
+                  type="text" 
+                  required
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-stone-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+                  placeholder="Es. Maria Rossi"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Numero di Telefono</label>
+                <input 
+                  type="tel" 
+                  required
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-stone-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+                  placeholder="Es. 333 1234567"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setBookingModal({ isOpen: false, timeSlot: null })}
+                  className="flex-1 py-3 px-4 rounded-xl font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+                >
+                  Annulla
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-3 px-4 rounded-xl font-medium text-yellow-500 bg-black hover:bg-stone-900 shadow-md shadow-stone-300 transition-colors"
+                >
+                  Conferma
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {bookingSuccess.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-center border border-pink-200">
+            <div className="bg-black p-8 border-b border-yellow-600/30">
+              <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">✅</span>
+              </div>
+              <h3 className="text-2xl font-serif text-pink-200">Prenotazione Confermata!</h3>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="text-stone-700 text-lg">
+                <p>Ci vediamo il <strong className="capitalize">{getFormattedDate(bookingSuccess.details.date)}</strong></p>
+                <p>alle ore <strong>{bookingSuccess.details.timeStr}</strong></p>
+                <p className="text-sm mt-1 text-stone-500">per {bookingSuccess.details.serviceName}</p>
+              </div>
+
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg text-left shadow-sm">
+                <p className="text-yellow-800 font-medium text-sm flex items-start gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <span>Attenzione: Ricordati di fare uno screenshot di questa schermata o di salvare l'appuntamento nel tuo calendario!</span>
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setBookingSuccess({ isOpen: false, details: null })}
+                className="w-full py-3 px-4 rounded-xl font-medium text-yellow-500 bg-black hover:bg-stone-900 shadow-md shadow-stone-300 transition-colors"
+              >
+                Chiudi e Torna alla Home
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-lg text-white font-medium z-50 flex items-center gap-2 animate-in slide-in-from-bottom-5
+          ${toast.type === 'error' ? 'bg-red-500' : 'bg-black border border-yellow-600/50'}
+        `}>
+          {toast.type === 'error' ? '⚠️' : '✅'} {toast.message}
+        </div>
+      )}
+    </div>
+  );
+}
