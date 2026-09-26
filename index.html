@@ -3,328 +3,651 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anna Paolino Nails</title>
+    <title>Anna Paolino Nails - Prenotazioni</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #fcfcfc; color: #333; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Poppins:wght@300;400;500&display=swap');
+
+        :root {
+            --primary-color: #d8a2a2;
+            --primary-dark: #b87b7b;
+            --bg-color: #fcf9f9;
+            --text-color: #4a3b3b;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 600;
+        }
+
+        header {
+            background-color: var(--white);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            color: var(--primary-dark);
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: 1px;
+        }
+
+        .nav-buttons {
+            margin-top: 15px;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            transition: 0.3s;
+            margin: 0 5px;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-dark);
+        }
         
-        /* Header Scuro ed Elegante per far risaltare il logo */
-        header { background-color: #000000; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid #e8a2b2; } 
-        .logo { width: 90px; height: 90px; object-fit: contain; border-radius: 50%; }
-        h1 { color: #d4af37; margin: 0; font-size: 24px; letter-spacing: 2px; text-transform: uppercase; }
-        .subtitle { color: #e8a2b2; font-size: 14px; letter-spacing: 4px; display: block; margin-top: 5px; }
+        .btn-danger {
+            background-color: transparent;
+            border: 1px solid #d9534f;
+            color: #d9534f;
+        }
+        .btn-danger:hover {
+            background-color: #d9534f;
+            color: white;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 30px;
+            background: var(--white);
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(216, 162, 162, 0.15);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2cece;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            background-color: #fffafb;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 5px rgba(216, 162, 162, 0.3);
+        }
+
+        .slots-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .slot {
+            padding: 10px;
+            text-align: center;
+            background-color: #fcf9f9;
+            border: 1px solid #e2cece;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .slot:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-dark);
+        }
+
+        .slot.selected {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .reservation-card {
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            background: #fffafb;
+            margin-bottom: 15px;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            text-align: left;
+        }
+
+        .reservation-card h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+        }
+
+        .reservation-card p {
+            margin: 3px 0;
+            font-size: 14px;
+        }
         
-        .container { padding: 25px; max-width: 600px; margin: 30px auto; background: white; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
-        .btn { background-color: #e8a2b2; color: white; border: none; padding: 14px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 20px; font-weight: bold; transition: 0.3s; }
-        .btn:hover { background-color: #d68a9b; }
-        .admin-btn { background-color: transparent; border: 1px solid #d4af37; color: #d4af37; width: auto; font-size: 13px; padding: 8px 12px; }
-        .admin-btn:hover { background-color: #d4af37; color: #000; }
+        .admin-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .error {
+            color: #d9534f;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        /* Modals (Popups) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(74, 59, 59, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(3px);
+        }
+
+        .modal-content {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: fadeIn 0.4s ease;
+        }
+
+        .modal-content h3 {
+            color: var(--primary-dark);
+            margin-top: 0;
+            font-size: 22px;
+        }
         
-        label { font-weight: bold; margin-top: 20px; display: block; color: #444; }
-        select, input[type="date"], input[type="text"], input[type="tel"], input[type="password"] { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .modal-text {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
         
-        /* Griglia degli Slot */
-        .slots-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
-        .slot-btn { padding: 10px; border: 1px solid #d4af37; background: #fff; color: #333; border-radius: 6px; cursor: pointer; font-size: 15px; transition: 0.2s; }
-        .slot-btn:hover:not(:disabled) { background: #d4af37; color: white; }
-        .slot-btn.selected { background: #d4af37; color: white; border: 2px solid #000; font-weight: bold; }
-        .slot-btn:disabled { background: #eee; border-color: #ddd; color: #aaa; cursor: not-allowed; text-decoration: line-through; }
-        
-        .success-msg, .admin-area { display: none; }
-        .warning-box { background-color: #fff3cd; border: 1px left solid #ffeeba; border-left: 5px solid #ffc107; padding: 15px; margin: 25px 0; border-radius: 5px; font-size: 15px; color: #856404; line-height: 1.6; }
-        
-        /* Tabella Admin (Responsive) */
-        .table-container { overflow-x: auto; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 500px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #f2f2f2; color: #333; }
-        .btn-delete { background-color: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .modal-highlight {
+            background-color: #fffafb;
+            border: 1px dashed var(--primary-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
     </style>
 </head>
 <body>
 
     <header>
-        <div style="display: flex; align-items: center;">
-            <img src="image_8b54aa.jpg" alt="Logo Anna Paolino Nails" class="logo" onerror="this.style.display='none'">
-            <div style="margin-left: 15px;">
-                <h1>Anna Paolino</h1>
-                <span class="subtitle">NAIL STUDIO</span>
-            </div>
+        <h1>Anna Paolino Nails</h1>
+        <div class="nav-buttons">
+            <button class="btn" onclick="showSection('booking')">Prenota Ora</button>
+            <button class="btn btn-outline" onclick="showSection('login')">Area Riservata</button>
         </div>
-        <button class="btn admin-btn" onclick="mostraDiv('admin-login')">Admin</button>
     </header>
 
     <div class="container">
-        
-        <!-- Form di Prenotazione Principale -->
-        <div id="prenotazione-form">
-            <h2 style="color: #d4af37; text-align: center; margin-bottom: 20px;">Prenota Appuntamento</h2>
+        <!-- SEZIONE PRENOTAZIONE CLIENTI -->
+        <div id="booking" class="section active">
+            <h2>Nuova Prenotazione</h2>
+            <p style="font-size: 14px; color: #777; margin-bottom: 25px;">Seleziona il servizio e scegli l'orario perfetto per te.</p>
             
-            <label>1. I tuoi Dati:</label>
-            <input type="text" id="nome-cliente" placeholder="Nome e Cognome">
-            <input type="tel" id="telefono-cliente" placeholder="Numero di Telefono (es. 3331234567)">
-
-            <label>2. Scegli il Servizio:</label>
-            <select id="servizio" onchange="aggiornaSlot()">
-                <option value="" disabled selected>Seleziona un servizio...</option>
-                <option value="Pedicure_1">Pedicure (30 min)</option>
-                <option value="Manicure_2">Manicure (1 ora)</option>
-                <option value="Rimozione Gel_1">Rimozione Gel (30 min)</option>
-                <option value="Refill_2">Refill (1 ora)</option>
-                <option value="Ricostruzione Unghie_4">Ricostruzione (2 ore)</option>
-            </select>
-
-            <label>3. Seleziona la Data:</label>
-            <input type="date" id="data" onchange="aggiornaSlot()">
-
-            <label id="label-orari" style="display:none;">4. Scegli l'Orario:</label>
-            <div id="slots-wrapper" class="slots-container"></div>
-
-            <button id="btn-conferma" class="btn" style="display:none;" onclick="confermaPrenotazione()">Conferma Appuntamento</button>
-        </div>
-
-        <!-- Schermata di Successo -->
-        <div id="successo" class="success-msg text-center">
-            <div style="font-size: 60px; color: #4caf50; text-align: center;">✓</div>
-            <h2 style="color: #4caf50; text-align: center;">Prenotazione Confermata!</h2>
-            <p style="font-size: 18px; text-align: center;">Grazie <strong id="riepilogo-nome" style="color: #333;"></strong></p>
-            <p style="font-size: 18px; text-align: center;">Servizio: <strong id="riepilogo-servizio" style="color: #d4af37;"></strong></p>
-            <p style="font-size: 18px; text-align: center;">Data: <strong id="riepilogo-data" style="color: #d4af37;"></strong> - Ore <strong id="riepilogo-ora" style="color: #d4af37;"></strong></p>
-            
-            <div class="warning-box">
-                📸 <strong>MOLTO IMPORTANTE:</strong> Fai uno screenshot di questa schermata o segna la data e l'ora sul calendario del tuo smartphone per non dimenticare l'appuntamento!
+            <div class="form-group">
+                <label>Nome e Cognome</label>
+                <input type="text" id="clientName" placeholder="Es. Giulia Rossi">
             </div>
-            
-            <button class="btn" style="background-color: #000;" onclick="resetForm()">Torna alla Home</button>
+
+            <div class="form-group">
+                <label>Numero di Telefono</label>
+                <input type="tel" id="clientPhone" placeholder="Es. 333 1234567">
+            </div>
+
+            <div class="form-group">
+                <label>Servizio Desiderato</label>
+                <select id="serviceSelect" onchange="updateSlots()">
+                    <option value="">-- Seleziona un servizio --</option>
+                    <option value="1">Cambio Smalto (30 min)</option>
+                    <option value="1">Pedicure (30 min)</option>
+                    <option value="2">Manicure con Semipermanente (1 ora)</option>
+                    <option value="3">Refill Gel (1 ora e 30 min)</option>
+                    <option value="4">Ricostruzione Gel (2 ore)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Data</label>
+                <input type="date" id="dateSelect" onchange="updateSlots()">
+            </div>
+
+            <div class="form-group">
+                <label>Orari Disponibili</label>
+                <div id="slotsContainer" class="slots-container">
+                    <p style="font-size:13px; color:#999; grid-column: 1 / -1;">Seleziona servizio e data per vedere gli orari.</p>
+                </div>
+            </div>
+
+            <button class="btn" style="width: 100%; margin-top: 10px;" id="btnSubmitBooking" onclick="submitBooking()">Conferma Prenotazione</button>
         </div>
 
-        <!-- Login Area Admin -->
-        <div id="admin-login" class="admin-area">
-            <h2 style="color: #d4af37; text-align: center;">Accesso Gestionale</h2>
-            <label>Username:</label>
-            <input type="text" id="admin-user">
-            <label>Password:</label>
-            <input type="password" id="admin-pass">
-            <button class="btn" style="background-color: #000; color: #d4af37;" onclick="accediAdmin()">Accedi</button>
-            <button class="btn" style="background-color: #eee; color: #333;" onclick="mostraDiv('prenotazione-form')">Annulla</button>
+        <!-- SEZIONE LOGIN ADMIN -->
+        <div id="login" class="section">
+            <h2>Accesso Titolare</h2>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password">
+                <div id="loginError" class="error">Credenziali errate!</div>
+            </div>
+            <button class="btn" style="width: 100%;" onclick="performLogin()">Accedi</button>
         </div>
-        
-        <!-- Dashboard Admin -->
-        <div id="admin-dashboard" class="admin-area">
-            <h2 style="color: #d4af37;">Le tue Prenotazioni</h2>
-            <div class="table-container" id="lista-prenotazioni"></div>
-            <button class="btn" style="background-color: #e8a2b2;" onclick="esciAdmin()">Esci dal Gestionale</button>
+
+        <!-- SEZIONE DASHBOARD ADMIN -->
+        <div id="admin" class="section">
+            <h2>Le mie Prenotazioni</h2>
+            <button class="btn btn-outline" style="margin-bottom: 20px; font-size: 12px; padding: 5px 10px;" onclick="logout()">Esci</button>
+            <div id="reservationsList">
+                <p>Caricamento prenotazioni in corso...</p>
+            </div>
         </div>
-        
     </div>
 
-    <script>
-        // Configurazione Orari
-        const orariMattina = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30'];
-        const orariPomeriggio = ['14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30'];
-        
-        let slotSelezionato = null;
-
-        // Imposta la data minima a oggi
-        const oggi = new Date();
-        const anno = oggi.getFullYear();
-        let mese = oggi.getMonth() + 1;
-        let giorno = oggi.getDate();
-        if(mese < 10) mese = '0' + mese;
-        if(giorno < 10) giorno = '0' + giorno;
-        document.getElementById('data').min = `${anno}-${mese}-${giorno}`;
-
-        function ottieniPrenotazioni() {
-            return JSON.parse(localStorage.getItem('anna_prenotazioni')) || [];
-        }
-
-        function salvaPrenotazione(prenotazione) {
-            const db = ottieniPrenotazioni();
-            db.push(prenotazione);
-            localStorage.setItem('anna_prenotazioni', JSON.stringify(db));
-        }
-
-        function cancellaPrenotazione(id) {
-            let db = ottieniPrenotazioni();
-            db = db.filter(p => p.id !== id);
-            localStorage.setItem('anna_prenotazioni', JSON.stringify(db));
-            caricaDashboardAdmin(); 
-        }
-
-        function aggiornaSlot() {
-            const dataScelta = document.getElementById('data').value;
-            const servizioValue = document.getElementById('servizio').value;
-            const container = document.getElementById('slots-wrapper');
-            const labelOrari = document.getElementById('label-orari');
-            const btnConferma = document.getElementById('btn-conferma');
+    <!-- MODAL SUCCESSO PRENOTAZIONE -->
+    <div id="successModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Prenotazione Confermata! ✨</h3>
+            <p class="modal-text">Grazie per aver scelto <strong>Anna Paolino Nails</strong>.</p>
             
+            <div id="successDetails" class="modal-highlight"></div>
+            
+            <p class="modal-text" style="color: var(--primary-dark); font-weight: 500;">
+                📸 Ti invitiamo a scattare uno screenshot di questa schermata o a salvare l'appuntamento nel tuo calendario per non dimenticarlo!
+            </p>
+            <button class="btn" style="width: 100%;" onclick="closeSuccessModal()">Chiudi e Torna alla Home</button>
+        </div>
+    </div>
+
+    <!-- MODAL MODIFICA ADMIN -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Modifica Appuntamento</h3>
+            <input type="hidden" id="editBookingId">
+            
+            <div class="form-group">
+                <label>Nome Cliente</label>
+                <input type="text" id="editName">
+            </div>
+            
+            <div class="form-group">
+                <label>Data</label>
+                <input type="date" id="editDate">
+            </div>
+            
+            <div class="form-group">
+                <label>Orario di Inizio</label>
+                <input type="time" id="editTime">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn" style="flex: 1;" onclick="saveEdit()">Salva</button>
+                <button class="btn btn-outline" style="flex: 1;" onclick="closeEditModal()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Integrazione Firebase (JS SDK v10 in modulo) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqbYs-Nc6uyLpBcUqytM7ojDCB8kDvJP4",
+            authDomain: "annapaolinonails.firebaseapp.com",
+            projectId: "annapaolinonails",
+            storageBucket: "annapaolinonails.firebasestorage.app",
+            messagingSenderId: "24551841724",
+            appId: "1:24551841724:web:68829b83f94555e88e15b9",
+            measurementId: "G-WHPHNKC94X"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let bookings = [];
+        let selectedTime = null;
+
+        // Ascolta il database in tempo reale (Real-time listener)
+        onSnapshot(collection(db, "prenotazioni"), (snapshot) => {
+            bookings = [];
+            snapshot.forEach((docSnap) => {
+                bookings.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            
+            // Se l'area admin è aperta, aggiorna la lista istantaneamente
+            if (document.getElementById('admin').classList.contains('active')) {
+                renderBookings();
+            }
+            // Se un cliente sta prenotando e ha selezionato una data, aggiorna gli slot per evitare overbooking
+            if (document.getElementById('dateSelect').value) {
+                window.updateSlots();
+            }
+        });
+
+        // Rendiamo le funzioni globali (necessario quando si usa type="module")
+        window.showSection = function(sectionId) {
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            if(sectionId === 'admin') renderBookings();
+        }
+
+        window.updateSlots = function() {
+            const dateStr = document.getElementById('dateSelect').value;
+            const slotsNeeded = parseInt(document.getElementById('serviceSelect').value);
+            const container = document.getElementById('slotsContainer');
+            selectedTime = null;
+
+            if (!dateStr || !slotsNeeded) {
+                container.innerHTML = '<p style="font-size:13px; color:#999; grid-column: 1 / -1;">Seleziona servizio e data.</p>';
+                return;
+            }
+
+            const date = new Date(dateStr);
+            const dayOfWeek = date.getDay(); 
+
+            if (dayOfWeek === 0) {
+                container.innerHTML = '<p style="font-size:13px; color:#d9534f; grid-column: 1 / -1;">Il salone è chiuso la domenica.</p>';
+                return;
+            }
+
             container.innerHTML = '';
-            slotSelezionato = null;
-            btnConferma.style.display = 'none';
-
-            if (!dataScelta || !servizioValue) {
-                labelOrari.style.display = 'none';
-                return;
-            }
-
-            const dataObj = new Date(dataScelta);
-            const giornoSettimana = dataObj.getDay(); 
-
-            if (giornoSettimana === 0) {
-                container.innerHTML = '<p style="color:red; grid-column: span 3; text-align:center;">Il salone è chiuso la Domenica.</p>';
-                labelOrari.style.display = 'block';
-                return;
-            }
-
-            let orariDelGiorno = [...orariMattina];
-            if (giornoSettimana !== 6) { 
-                orariDelGiorno = orariDelGiorno.concat(orariPomeriggio);
-            }
-
-            const slotRichiesti = parseInt(servizioValue.split('_')[1]);
-            const prenotazioniEsistenti = ottieniPrenotazioni().filter(p => p.data === dataScelta);
             
-            let slotOccupati = [];
-            prenotazioniEsistenti.forEach(p => {
-                const indiceInizio = orariDelGiorno.indexOf(p.orario);
-                if(indiceInizio !== -1) {
-                    for(let i=0; i<p.slotOccupati; i++) {
-                        if(orariDelGiorno[indiceInizio + i]) {
-                            slotOccupati.push(orariDelGiorno[indiceInizio + i]);
-                        }
+            const isSaturday = (dayOfWeek === 6);
+            const startHour = 9;
+            const endHour = isSaturday ? 12 : 19;
+            
+            let allSlots = [];
+            for (let h = startHour; h < endHour; h++) {
+                if (!isSaturday && h === 13) continue; 
+                allSlots.push(`${h.toString().padStart(2, '0')}:00`);
+                allSlots.push(`${h.toString().padStart(2, '0')}:30`);
+            }
+
+            allSlots.forEach((time, index) => {
+                let canBook = true;
+                for(let i = 0; i < slotsNeeded; i++) {
+                    let nextIndex = index + i;
+                    if (nextIndex >= allSlots.length) { canBook = false; break; }
+                    
+                    if (!isSaturday && allSlots[nextIndex-1] === "12:30" && allSlots[nextIndex] === "14:00") {
+                        canBook = false; break;
                     }
+
+                    let checkTime = allSlots[nextIndex];
+                    let isBooked = bookings.some(b => b.date === dateStr && checkTime >= b.startTime && checkTime < b.endTime);
+                    if (isBooked) canBook = false;
+                }
+
+                if (canBook) {
+                    const slotDiv = document.createElement('div');
+                    slotDiv.className = 'slot';
+                    slotDiv.innerText = time;
+                    slotDiv.onclick = () => window.selectTime(slotDiv, time);
+                    container.appendChild(slotDiv);
                 }
             });
 
-            labelOrari.style.display = 'block';
-
-            orariDelGiorno.forEach((ora, index) => {
-                const btn = document.createElement('button');
-                btn.className = 'slot-btn';
-                btn.innerText = ora;
-
-                let possibile = true;
-                for (let i = 0; i < slotRichiesti; i++) {
-                    const orarioCheck = orariDelGiorno[index + i];
-                    if (!orarioCheck || slotOccupati.includes(orarioCheck)) {
-                        possibile = false;
-                        break;
-                    }
-                    if (i > 0 && orarioCheck === '14:00' && ora !== '14:00') {
-                         possibile = false; 
-                         break;
-                    }
-                }
-
-                if (!possibile) {
-                    btn.disabled = true;
-                } else {
-                    btn.onclick = () => selezionaSlot(btn, ora);
-                }
-                
-                container.appendChild(btn);
-            });
+            if (container.innerHTML === '') {
+                container.innerHTML = '<p style="font-size:13px; color:#d9534f; grid-column: 1 / -1;">Nessun orario disponibile.</p>';
+            }
         }
 
-        function selezionaSlot(btnElement, orario) {
-            document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
-            btnElement.classList.add('selected');
-            slotSelezionato = orario;
-            document.getElementById('btn-conferma').style.display = 'block';
+        window.selectTime = function(element, time) {
+            document.querySelectorAll('.slot').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedTime = time;
         }
 
-        function confermaPrenotazione() {
-            const nomeCliente = document.getElementById('nome-cliente').value.trim();
-            const telefonoCliente = document.getElementById('telefono-cliente').value.trim();
-            const dataScelta = document.getElementById('data').value;
-            const servizioValue = document.getElementById('servizio').value;
-            const nomeServizio = servizioValue.split('_')[0];
-            const slotRichiesti = parseInt(servizioValue.split('_')[1]);
+        function getEndTime(startTime, slots) {
+            let [hours, minutes] = startTime.split(':').map(Number);
+            minutes += (slots * 30);
+            hours += Math.floor(minutes / 60);
+            minutes = minutes % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
 
-            // Controlla che i dati cliente siano stati inseriti
-            if (!nomeCliente || !telefonoCliente) {
-                alert("Per favore, inserisci il tuo Nome, Cognome e Numero di Telefono.");
+        window.submitBooking = async function() {
+            const btn = document.getElementById('btnSubmitBooking');
+            const name = document.getElementById('clientName').value;
+            const phone = document.getElementById('clientPhone').value;
+            const serviceSelect = document.getElementById('serviceSelect');
+            const serviceName = serviceSelect.options[serviceSelect.selectedIndex]?.text;
+            const slots = parseInt(serviceSelect.value);
+            const date = document.getElementById('dateSelect').value;
+
+            if (!name || !phone || !serviceSelect.value || !date || !selectedTime) {
+                alert("Per favore, compila tutti i campi e seleziona un orario.");
                 return;
             }
 
-            const nuovaPrenotazione = {
-                id: Date.now().toString(),
-                cliente: nomeCliente,
-                telefono: telefonoCliente,
-                data: dataScelta,
-                orario: slotSelezionato,
-                servizio: nomeServizio,
-                slotOccupati: slotRichiesti
+            btn.disabled = true;
+            btn.innerText = "Invio in corso...";
+            
+            const endTime = getEndTime(selectedTime, slots);
+
+            const newBooking = {
+                name,
+                phone,
+                service: serviceName,
+                date,
+                startTime: selectedTime,
+                endTime: endTime,
+                slots: slots
             };
-            
-            salvaPrenotazione(nuovaPrenotazione);
 
-            mostraDiv('successo');
-            document.getElementById('riepilogo-nome').innerText = nomeCliente;
-            document.getElementById('riepilogo-servizio').innerText = nomeServizio;
-            document.getElementById('riepilogo-data').innerText = dataScelta.split('-').reverse().join('/');
-            document.getElementById('riepilogo-ora').innerText = slotSelezionato;
-        }
-
-        function mostraDiv(id) {
-            document.getElementById('prenotazione-form').style.display = 'none';
-            document.getElementById('successo').style.display = 'none';
-            document.getElementById('admin-login').style.display = 'none';
-            document.getElementById('admin-dashboard').style.display = 'none';
-            document.getElementById(id).style.display = 'block';
-        }
-
-        function resetForm() {
-            document.getElementById('nome-cliente').value = '';
-            document.getElementById('telefono-cliente').value = '';
-            document.getElementById('servizio').value = '';
-            document.getElementById('data').value = '';
-            document.getElementById('slots-wrapper').innerHTML = '';
-            document.getElementById('label-orari').style.display = 'none';
-            document.getElementById('btn-conferma').style.display = 'none';
-            mostraDiv('prenotazione-form');
-        }
-
-        function accediAdmin() {
-            const user = document.getElementById('admin-user').value;
-            const pass = document.getElementById('admin-pass').value;
-
-            if (user === 'annanails' && pass === 'peppenails') {
-                caricaDashboardAdmin();
-                mostraDiv('admin-dashboard');
-            } else {
-                alert('Credenziali errate.');
+            try {
+                // Salvataggio sul Cloud Firestore
+                await addDoc(collection(db, "prenotazioni"), newBooking);
+                
+                // Mostra Modal
+                const dateObj = new Date(date);
+                const dataFormattata = dateObj.toLocaleDateString('it-IT', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' });
+                
+                document.getElementById('successDetails').innerHTML = `
+                    <strong>${name}</strong><br>
+                    ${serviceName}<br>
+                    📅 ${dataFormattata}<br>
+                    ⏰ ${selectedTime}
+                `;
+                document.getElementById('successModal').style.display = 'flex';
+                
+                // Reset form
+                document.getElementById('clientName').value = '';
+                document.getElementById('clientPhone').value = '';
+                document.getElementById('serviceSelect').value = '';
+                document.getElementById('dateSelect').value = '';
+                document.getElementById('slotsContainer').innerHTML = '';
+            } catch (error) {
+                console.error("Errore durante la prenotazione: ", error);
+                alert("Si è verificato un errore di connessione. Riprova.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Conferma Prenotazione";
             }
         }
 
-        function caricaDashboardAdmin() {
-            const db = ottieniPrenotazioni();
-            const container = document.getElementById('lista-prenotazioni');
-            
-            if (db.length === 0) {
-                container.innerHTML = '<p>Nessuna prenotazione attiva.</p>';
+        window.closeSuccessModal = function() {
+            document.getElementById('successModal').style.display = 'none';
+        }
+
+        window.performLogin = function() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+
+            if (user === "Annanails" && pass === "Peppenails") {
+                errorDiv.style.display = 'none';
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                window.showSection('admin');
+            } else {
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        window.logout = function() {
+            window.showSection('booking');
+        }
+
+        function renderBookings() {
+            const list = document.getElementById('reservationsList');
+            list.innerHTML = '';
+
+            if (bookings.length === 0) {
+                list.innerHTML = '<p>Non ci sono ancora prenotazioni.</p>';
                 return;
             }
 
-            db.sort((a, b) => new Date(a.data + "T" + a.orario) - new Date(b.data + "T" + b.orario));
-
-            let html = '<table><tr><th>Giorno/Ora</th><th>Cliente</th><th>Servizio</th><th>Azione</th></tr>';
-            db.forEach(p => {
-                const dataFormattata = p.data.split('-').reverse().join('/');
-                html += `<tr>
-                            <td><strong>${dataFormattata}</strong><br>${p.orario}</td>
-                            <td><strong>${p.cliente}</strong><br>${p.telefono}</td>
-                            <td>${p.servizio}</td>
-                            <td><button class="btn-delete" onclick="cancellaPrenotazione('${p.id}')">Cancella</button></td>
-                         </tr>`;
+            const sortedBookings = [...bookings].sort((a, b) => {
+                if (a.date !== b.date) return a.date.localeCompare(b.date);
+                return a.startTime.localeCompare(b.startTime);
             });
-            html += '</table>';
-            container.innerHTML = html;
+
+            sortedBookings.forEach(b => {
+                const dateObj = new Date(b.date);
+                const dataFormattata = dateObj.toLocaleDateString('it-IT', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' });
+
+                const card = document.createElement('div');
+                card.className = 'reservation-card';
+                card.innerHTML = `
+                    <h3>${b.startTime} - ${b.endTime} | ${b.name}</h3>
+                    <p><strong>Servizio:</strong> ${b.service}</p>
+                    <p><strong>Data:</strong> ${dataFormattata}</p>
+                    <p><strong>Telefono:</strong> <a href="tel:${b.phone}" style="color:var(--primary-dark);">${b.phone}</a></p>
+                    <div class="admin-actions">
+                        <button class="btn btn-outline" style="padding: 5px 12px; font-size: 12px;" onclick="window.openEditModal('${b.id}')">Modifica</button>
+                        <button class="btn btn-danger" style="padding: 5px 12px; font-size: 12px;" onclick="window.deleteBooking('${b.id}')">Elimina</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
         }
 
-        function esciAdmin() {
-            document.getElementById('admin-user').value = '';
-            document.getElementById('admin-pass').value = '';
-            resetForm();
+        window.deleteBooking = async function(id) {
+            if(confirm("Sei sicura di voler eliminare definitivamente questa prenotazione?")) {
+                try {
+                    await deleteDoc(doc(db, "prenotazioni", id));
+                } catch(e) {
+                    alert("Errore durante l'eliminazione.");
+                }
+            }
+        }
+
+        window.openEditModal = function(id) {
+            const b = bookings.find(x => x.id === id);
+            if(!b) return;
+            
+            document.getElementById('editBookingId').value = b.id;
+            document.getElementById('editName').value = b.name;
+            document.getElementById('editDate').value = b.date;
+            document.getElementById('editTime').value = b.startTime;
+            
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        window.closeEditModal = function() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        window.saveEdit = async function() {
+            const id = document.getElementById('editBookingId').value;
+            const b = bookings.find(x => x.id === id);
+            
+            if(b) {
+                const newTime = document.getElementById('editTime').value;
+                const oldSlots = b.slots || 1;
+                const newName = document.getElementById('editName').value;
+                const newDate = document.getElementById('editDate').value;
+                const newEndTime = getEndTime(newTime, oldSlots);
+                
+                try {
+                    await updateDoc(doc(db, "prenotazioni", id), {
+                        name: newName,
+                        date: newDate,
+                        startTime: newTime,
+                        endTime: newEndTime
+                    });
+                    window.closeEditModal();
+                } catch (error) {
+                    alert("Errore durante la modifica.");
+                }
+            }
         }
     </script>
 </body>
